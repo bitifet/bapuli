@@ -1,0 +1,33 @@
+{
+  "name": "bapuli",
+  "version": "0.0.0",
+  "description": "Backup Purging List",
+  "main": "bapuli.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "mkdir build 2>/dev/null; nexe -o build/bapuli"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bitifet/bapuli.git"
+  },
+  "keywords": [
+    "Backup",
+    "Purge",
+    "List",
+    "Filter",
+    "Deletion"
+  ],
+  "author": "Joan Miquel Torres <jmtorres@112ib.com>",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/bitifet/bapuli/issues"
+  },
+  "homepage": "https://github.com/bitifet/bapuli#readme",
+  "devDependencies": {
+    "nexe": "^2.0.0-rc.34"
+  },
+  "dependencies": {
+    "moment": "^2.22.2"
+  }
+}
