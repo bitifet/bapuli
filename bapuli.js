@@ -11,34 +11,43 @@ const now = (function() { // Immutable current moment.
     return ()=>t0.clone();
 })();
 
-const periods = [...process.argv].slice(2)//{{{
-    .map(function(arg) {
-        try {
-            var [
-                period = 1,
-                periodUnits = 'days',
-                freq = 1,
-                freqUnits = 'days',
-            ] = arg.match(pickRule_re).slice(1);
+const periods = (function(pSpec){//{{{
+    let lastPeriod = 0;
+    let lastFreq = 0;
+    return pSpec
+        .map(function(arg) {
+            try {
+                var [
+                    age = 1,
+                    periodUnits = 'days',
+                    freq = 1,
+                    freqUnits = 'days',
+                ] = arg.match(pickRule_re).slice(1);
 
-            var retV = {
-                label: arg,
-                period: Moment.duration(Number(period), periodUnits).asMilliseconds(),
-                freq: Moment.duration(Number(freq), freqUnits).asMilliseconds(),
+                var retV = {
+                    label: arg,
+                    age: Moment.duration(Number(age), periodUnits).asMilliseconds(),
+                    freq: Moment.duration(Number(freq), freqUnits).asMilliseconds(),
+                };
+
+
+            } catch(err) {
+                throw "Wrong argument format: " + arg;
             };
 
+            if (retV.age <= 0) throw "Invalid period age: " + arg;
+            if (retV.age <= lastPeriod) throw "Period age should be greater than previous one: " + arg;
+            if (retV.freq <= 0) throw "Invalid period frequency: " + arg;
+            if (retV.freq <= lastFreq) throw "Period frequency should be greater than previous one: " + arg;
 
-        } catch(err) {
-            throw "Wrong argument format: " + arg;
-        };
+            lastPeriod = retV.age;
+            lastFreq = retV.freq;
 
-        if (retV.period <= 0) throw "Invalid period duration: " + period+periodUnits;
-        if (retV.freq <= 0) throw "Invalid frequency duration: " + freq+freqUnits;
-
-        return retV;
-    })
-    .sort((a, b)=>b.period-a.period)
-;//}}}
+            return retV;
+        })
+        .sort((a, b)=>b.age-a.age) // Reverse (think backward, but do process forwards)
+    ;
+})([...process.argv].slice(2));//}}}
 
 const files = Fs.readFileSync(0)//{{{
     .toString()
@@ -84,7 +93,7 @@ for (let f = 0; f < files.length; f++) {
     while (
         Moment(files[f].date)
         > now().subtract(
-            (periods[p] || {period: Infinity}).period
+            (periods[p] || {age: Infinity}).age
         )
     ) {
         // console.log ("------------------");
@@ -92,7 +101,7 @@ for (let f = 0; f < files.length; f++) {
         // console.log ("------------------");
         // console.log("  ---> File:", files[f]);
         // console.log("  ---> Now:", now());
-        // console.log("  ---> Period end:", now().subtract((periods[p] || {period: Infinity}).period));
+        // console.log("  ---> Period end:", now().subtract((periods[p] || {age: Infinity}).age));
         // console.log("  ---> Current:", Moment(files[f].date));
         // console.log ("------------------");
 
@@ -126,7 +135,7 @@ for (let f = 0; f < files.length; f++) {
 
     if (reason) preserve(files[f], reason);
 
-    // console.log (Moment(files[f].date), now().subtract(periods[p].period));
+    // console.log (Moment(files[f].date), now().subtract(periods[p].age));
 
 };
 
