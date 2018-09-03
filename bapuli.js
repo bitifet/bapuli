@@ -76,7 +76,7 @@ const files = (function(stdin) {//{{{
                     date,
                 });
             } catch (err) {
-                throw "Wrongly formatted file name: " + fullPath;
+                console.error("Wrongly formatted file name: " + fullPath);
             };
 
         })
