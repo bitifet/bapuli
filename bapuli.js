@@ -3,6 +3,7 @@
 const Fs = require("fs");
 const Moment = require("moment");
  
+const splitPath_re = /^(.*\/)?(.*)$/;
 const pickRule_re = /^(\d+)?(\D+)?:(\d+)?(\D+)?$/;
 const pickDate_re = /^.*?(\d{4})(\d{2})(\d{2})/;
 
@@ -10,6 +11,7 @@ const now = (function() { // Immutable current moment.
     const t0 = Moment();
     return ()=>t0.clone();
 })();
+
 
 const periods = (function(pSpec){//{{{
     let lastPeriod = 0;
@@ -49,100 +51,106 @@ const periods = (function(pSpec){//{{{
     ;
 })([...process.argv].slice(2));//}}}
 
-const files = Fs.readFileSync(0)//{{{
-    .toString()
-    .trim()
-    .split("\n")
-    .map(function(name) {
-        const date = new Date(
-            name.match(pickDate_re)
-                .slice(1, 4)
-                .join("-")
-        );
+const files = (function(stdin) {//{{{
+    const files = {};
 
-        return {
-            name,
-            date,
+    Fs.readFileSync(stdin)
+        .toString()
+        .trim()
+        .split("\n")
+        .map(function(fullPath) {
+
+            try {
+                const [path = "", name] = fullPath.match(splitPath_re).slice(1);
+
+                if (files[path] === undefined) files[path] = [];
+
+                const date = new Date(
+                    name.match(pickDate_re)
+                        .slice(1, 4)
+                        .join("-")
+                );
+
+                files[path].push({
+                    name,
+                    date,
+                });
+            } catch (err) {
+                throw "Wrongly formatted file name: " + fullPath;
+            };
+
+        })
+    ;
+
+    for (let f in files) files[f]=files[f].sort((a,b)=>a.date - b.date);
+
+    return files;
+
+})(0);//}}}
+
+function bapuli (files, path) {//{{{
+    var last = null;
+    var deadline = null;
+    let p = 0;
+
+    function preserve(file, why) {//{{{
+        ///console.log ("PRESERVING:", file.name, "("+why+")");
+        if (file.name.match(/.*?DemoFile_19760318_bkp.tar.gz/)) {
+            console.log ("PRESERVING:", file.name, "("+why+")");
+            console.log ("last:", last);
+            console.log ("deadline:", deadline);
+        };
+        file.preserve = true;
+        last = file.date;
+        deadline = Moment(last).add((periods[p] || {freq: 0}).freq);
+    };//}}}
+
+    for (let f = 0; f < files.length; f++) {
+
+        let nf = f+1; // Next
+
+        // Raise period:
+        while (
+            Moment(files[f].date)
+            > now().subtract(
+                (periods[p] || {age: Infinity}).age
+            )
+        ) p++;
+
+        let reason = false;
+        if (
+            // Always preserve oldest.
+            last === null
+        ) {
+            reason = "The very first";
+        } else if (
+            // Preserve all earlier from first period.
+            p >= periods.length
+        ) {
+            reason = "Earlier from first period";
+        } else if (
+            // Deadline.
+            nf >= files.length // Last file
+            || Moment(files[nf].date) > deadline // Last in term
+        ) {
+            reason = "Deadline";
         };
 
-    })
-    .sort((a,b)=>a.date - b.date)
-;//}}}
+        if (reason) preserve(files[f], reason);
 
-function preserve(file, why) {//{{{
-    ///console.log ("PRESERVING:", file.name, "("+why+")");
-    file.preserve = true;
-    last = file.date;
-    deadline = Moment(last).add((periods[p] || {freq: 0}).freq);
+    };
+
+
+    files
+        .filter(f=>!f.preserve)
+        .map(f=>console.log(path+f.name))
+    ;
+
 };//}}}
 
 
-
-var last = null;
-var deadline = null;
-
-let p = 0;
-
-
-for (let f = 0; f < files.length; f++) {
-
-    let nf = f+1; // Next
-    let periodRaised = false;
-
-    // Raise period:
-    while (
-        Moment(files[f].date)
-        > now().subtract(
-            (periods[p] || {age: Infinity}).age
-        )
-    ) {
-        // console.log ("------------------");
-        // console.log(p, periods[p])
-        // console.log ("------------------");
-        // console.log("  ---> File:", files[f]);
-        // console.log("  ---> Now:", now());
-        // console.log("  ---> Period end:", now().subtract((periods[p] || {age: Infinity}).age));
-        // console.log("  ---> Current:", Moment(files[f].date));
-        // console.log ("------------------");
-
-        p++;
-        periodRaised = true;
-    };
-
-    let reason = false;
-    if (
-        // Always preserve oldest.
-        last === null
-    ) {
-        reason = "The very first";
-        periodRaised = true;
-    } else if (
-        // Preserve all earlier from first period.
-        p >= periods.length
-    ) {
-        reason = "Earlier from first period";
-    } else if (
-        // Deadline.
-        nf >= files.length // Last file
-        || Moment(files[nf].date) > deadline // Last in term
-    ) {
-        reason = "Deadline";
-    };
-
-    if (periodRaised) {
-        ///console.log("  * New Period:", p, periods[p]);
-    };
-
-    if (reason) preserve(files[f], reason);
-
-    // console.log (Moment(files[f].date), now().subtract(periods[p].age));
-
+// Main:
+for (let path in files) {
+    bapuli (files[path], path);
 };
 
-
-
-
-files
-    .filter(f=>!f.preserve)
-    .map(f=>console.log(f.name))
-;
