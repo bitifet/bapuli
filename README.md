@@ -11,6 +11,7 @@ BaPuLi
 
 * [Abstract](#abstract)
 * [Compilation](#compilation)
+* [Installation](#installation)
 * [Usage example](#usage-example)
 * [Contributing](#contributing)
 
@@ -66,8 +67,15 @@ File list is read from stdin (one file per row) and it is returned the same way
 through stdout with kept files being removed so it can be used as input for a
 deletion process.
 
-All file name is supposed to contain a 'YYYYMMDD'-formatted date in its name
+  * All file name is supposed to contain a 'YYYYMMDD'-formatted date in its name
 (first matching pattern will be assumed).
+
+  * Files not following this pattern are ignored (even warning message is send
+    to stderr).
+
+  * File names can contine absolute or relative paths. In this case they will
+    be grouped by its actual path string (so multiple backup lists can be
+    processed at once if required rules are the same).
 
 
 Compilation
@@ -80,18 +88,42 @@ npm run build
 > You will find binary compiled for your OS under `build` directory.
 
 
+Installation
+------------
+
+After compiled, take `bapuli` binary and place a copy of it under a route under
+your execution path (like `/usr/local/bin`).
+
+
 Usage example
 -------------
 
-```
-    ls | bapuli 1:1 1week:week 3month:1month 1year:1year 5year:10year
+```sh
+    find path/to/my_backups -type f \
+      | bapuli 1:1 1week:week 3month:1month 1year:1year 5year:10year \
+      | perl -pe 'print "rm "' \
+      | bash
 ```
 
-This will generate a list of files in the current directory (`ls`) that can be
+This will generate a list of all files under specified directory that can be
 removed ensuring to keep:
 
+  * All files from up to 1 day before.
 
-  * All files before 1 day
+  * One file every day from those older than one day ( `1:1` ) up to first week
+    ago (according to next rule).
+
+  * One file per week from first week ( `1week:week` ) and up to 3 months old.
+
+  * One file per month from 3 months ago ( `3month:1month` )...
+
+  * One file per year from 1 year ago ( `1year:1year` )...
+
+  * One file every ten years from 5 years ago ( `5year:10year` ).
+
+  * Oldest file.
+    - Oldest file is always preserved. In fact all calculations are made from
+      that to current time.
 
 
 Contributing
